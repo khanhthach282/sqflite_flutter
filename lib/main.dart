@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'database_helper.dart';
-import 'note.dart';
+import 'category.dart';
+import 'notes_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -17,117 +16,87 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home: MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
-
   @override
-  // ignore: library_private_types_in_public_api
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
   final DatabaseHelper dbHelper = DatabaseHelper();
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
-  List<Note> notes = [];
-  Note? _selectedNote;
+  final TextEditingController categoryController = TextEditingController();
+  List<Category> categories = [];
 
   @override
   void initState() {
     super.initState();
-    _loadNotes();
+    _loadCategories();
   }
 
-  Future<void> _loadNotes() async {
-    final notesList = await dbHelper.notes();
+  Future<void> _loadCategories() async {
+    final categoriesList = await dbHelper.categories();
     setState(() {
-      notes = notesList;
+      categories = categoriesList;
     });
   }
 
-  Future<void> _addOrUpdateNote() async {
-    final title = titleController.text;
-    final description = descriptionController.text;
-    if (title.isNotEmpty && description.isNotEmpty) {
-      if (_selectedNote == null) {
-        final note = Note(
-          title: title,
-          description: description,
-        );
-        await dbHelper.insertNote(note);
-      } else {
-        _selectedNote!.title = title;
-        _selectedNote!.description = description;
-        await dbHelper.updateNote(_selectedNote!);
-        _selectedNote = null;
-      }
-      titleController.clear();
-      descriptionController.clear();
-      _loadNotes();
+  Future<void> _addCategory() async {
+    final name = categoryController.text;
+    if (name.isNotEmpty) {
+      final category = Category(name: name);
+      await dbHelper.insertCategory(category);
+      categoryController.clear();
+      _loadCategories();
     }
   }
 
-  Future<void> _deleteNote(int id) async {
-    await dbHelper.deleteNote(id);
-    _loadNotes();
+  Future<void> _deleteCategory(int id) async {
+    await dbHelper.deleteCategory(id);
+    _loadCategories();
   }
 
-  void _editNote(Note note) {
-    setState(() {
-      _selectedNote = note;
-      titleController.text = note.title;
-      descriptionController.text = note.description;
-    });
+  void _navigateToNotesPage(Category category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NotesPage(category: category),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter Sqflite Demo'),
+        title: Text('Flutter Sqflite Demo'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: 'Title'),
+              controller: categoryController,
+              decoration: InputDecoration(labelText: 'Category'),
             ),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
-            ),
-            const SizedBox(height: 16.0),
             ElevatedButton(
-              onPressed: _addOrUpdateNote,
-              child: Text(_selectedNote == null ? 'Add Note' : 'Update Note'),
+              onPressed: _addCategory,
+              child: Text('Add Category'),
             ),
             Expanded(
               child: ListView.builder(
-                itemCount: notes.length,
+                itemCount: categories.length,
                 itemBuilder: (context, index) {
-                  final note = notes[index];
+                  final category = categories[index];
                   return ListTile(
-                    title: Text(note.title),
-                    subtitle: Text(note.description),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editNote(note),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteNote(note.id!),
-                        ),
-                      ],
+                    title: Text(category.name),
+                    onTap: () => _navigateToNotesPage(category),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () => _deleteCategory(category.id!),
                     ),
                   );
                 },
@@ -139,4 +108,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-

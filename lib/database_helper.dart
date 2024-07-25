@@ -1,9 +1,10 @@
 import 'dart:async';
-// ignore: depend_on_referenced_packages
+
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'note.dart';
+import 'category.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -23,11 +24,53 @@ class DatabaseHelper {
     return await openDatabase(
       path,
       onCreate: (db, version) {
-        return db.execute(
-          'CREATE TABLE notes(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT)',
+        db.execute(
+          'CREATE TABLE categories(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)',
+        );
+        db.execute(
+          'CREATE TABLE notes(id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, categoryId INTEGER, FOREIGN KEY (categoryId) REFERENCES categories(id))',
         );
       },
       version: 1,
+    );
+  }
+
+  Future<void> insertCategory(Category category) async {
+    final db = await database;
+    await db.insert(
+      'categories',
+      category.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Category>> categories() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('categories');
+    return List.generate(maps.length, (i) {
+      return Category(
+        id: maps[i]['id'],
+        name: maps[i]['name'],
+      );
+    });
+  }
+
+  Future<void> updateCategory(Category category) async {
+    final db = await database;
+    await db.update(
+      'categories',
+      category.toMap(),
+      where: 'id = ?',
+      whereArgs: [category.id],
+    );
+  }
+
+  Future<void> deleteCategory(int id) async {
+    final db = await database;
+    await db.delete(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 
@@ -48,6 +91,7 @@ class DatabaseHelper {
         id: maps[i]['id'],
         title: maps[i]['title'],
         description: maps[i]['description'],
+        categoryId: maps[i]['categoryId'],
       );
     });
   }
